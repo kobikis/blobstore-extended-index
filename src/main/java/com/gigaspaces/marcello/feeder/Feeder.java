@@ -20,30 +20,34 @@ public class Feeder {
 
     static Random randomGenerator = new Random();
 
-    static void feedData(GigaSpace gigaSpace, int amount){
+    void feedData(GigaSpace gigaSpace, final int amount, final int batchSize){
         TelephoneNumber telephoneNumber;
         SubscriberChargeData subscriberChargeData;
-        for(int i = 0; i < amount; i++){
-            int rndTelephoneNumber = randomGenerator.nextInt(100);
-            int billSequence = randomGenerator.nextInt(1000000);
-            telephoneNumber = new TelephoneNumber(String.valueOf(rndTelephoneNumber), String.valueOf(rndTelephoneNumber));
-            subscriberChargeData = new SubscriberChargeData(String.valueOf(i), billSequence, telephoneNumber, generateTimePeriod());
-            List<ChargeRow> rows = new ArrayList<ChargeRow>();
-            for(int j = 0; j < 13; j++){
-                rows.add(generateChargeRow());
+        List<SubscriberChargeData> objects;
+        for(int j = 0, i = 0;j < amount/batchSize; j++) {
+            objects = new ArrayList<>();
+            for (; i < j*batchSize+batchSize; i++) {
+                int rndTelephoneNumber = randomGenerator.nextInt(100);
+                int billSequence = randomGenerator.nextInt(1000000);
+                telephoneNumber = new TelephoneNumber(String.valueOf(rndTelephoneNumber), String.valueOf(rndTelephoneNumber));
+                subscriberChargeData = new SubscriberChargeData(String.valueOf(i), billSequence, telephoneNumber, generateTimePeriod());
+                List<ChargeRow> rows = new ArrayList<ChargeRow>();
+                for (int k = 0; k < 13; k++) {
+                    rows.add(generateChargeRow());
+                }
+                subscriberChargeData.setChargeRows(rows);
+
+                List<ChargeRow> rowTotals = new ArrayList<ChargeRow>();
+                rowTotals.add(generateChargeRow());
+                subscriberChargeData.setChargeGroupTotals(rowTotals);
+                objects.add(subscriberChargeData);
             }
-            subscriberChargeData.setChargeRows(rows);
-
-            List<ChargeRow> rowTotals = new ArrayList<ChargeRow>();
-            rowTotals.add(generateChargeRow());
-            subscriberChargeData.setChargeGroupTotals(rowTotals);
-
-            gigaSpace.write(subscriberChargeData);
+            gigaSpace.writeMultiple(((List<SubscriberChargeData>)objects).toArray(new SubscriberChargeData[objects.size()]));
         }
     }
 
-    static TimePeriod generateTimePeriod(){
-        long beginTime = Timestamp.valueOf("2010-01-01 00:00:00").getTime();
+    TimePeriod generateTimePeriod(){
+        long beginTime = Timestamp.valueOf("2000-01-01 00:00:00").getTime();
         long endTime = Timestamp.valueOf("2015-12-31 00:58:00").getTime();
         long diff = endTime - beginTime + 1;
 
@@ -52,7 +56,7 @@ public class Feeder {
         return new TimePeriod(beginDate, endDate);
     }
 
-    static ChargeRow generateChargeRow(){
+    ChargeRow generateChargeRow(){
         String groupName = String.valueOf(randomGenerator.nextInt(10000));
         String name = String.valueOf(randomGenerator.nextInt(10000000));
         AmountWithDoubles amountWithDoubles = new AmountWithDoubles(randomGenerator.nextDouble()
@@ -60,10 +64,19 @@ public class Feeder {
         return new ChargeRow(groupName, name, amountWithDoubles);
     }
 
+    SubscriberChargeData[] qury(){
+        return null;
+    };
+
     public static void main(String[] args) {
 //        GigaSpace gigaSpace = new GigaSpaceConfigurer(new EmbeddedSpaceConfigurer("mySpace")).gigaSpace();
-        GigaSpace gigaSpace = new GigaSpaceConfigurer(new SpaceProxyConfigurer("mySpace")).gigaSpace();
-        feedData(gigaSpace, 1);
+        GigaSpace gigaSpace = new GigaSpaceConfigurer(new SpaceProxyConfigurer("mySpace").lookupGroups("")).gigaSpace();
+
+        Feeder feeder = new Feeder();
+        feeder.feedData(gigaSpace, 1000, 100);
+
+
+
 
     }
 }
